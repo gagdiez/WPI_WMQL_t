@@ -1,9 +1,9 @@
-from itertools import izip
 from warnings import warn
+from six.moves import range
 
 import numpy
 
-from tractography import Tractography
+from .tractography import Tractography
 
 from nibabel import trackvis
 
@@ -19,17 +19,17 @@ def tractography_to_trackvis_file(filename, tractography, affine=None, image_dim
         raise ValueError("Affine transform has to be provided")
 
     trackvis.aff_to_hdr(affine, trk_header, True, True)
-
+    trk_header['origin'] = 0.
     if image_dimensions is not None:
         trk_header['dim'] = image_dimensions
     elif hasattr(tractography, 'image_dimensions'):
-        trk_header['dim'] = image_dimensions
+        trk_header['dim'] = tractography.image_dimensions
     else:
         raise ValueError("Image dimensions needed to save a trackvis file")
 
     orig_data = tractography.tracts_data()
     data = {}
-    for k, v in orig_data.iteritems():
+    for k, v in orig_data.items():
         if not isinstance(v[0], numpy.ndarray):
             continue
         if (v[0].ndim > 1 and any(d > 1 for d in v[0].shape[1:])):
@@ -61,11 +61,12 @@ def tractography_to_trackvis_file(filename, tractography, affine=None, image_dim
         dtype='|S20'
     )
     trk_tracts = []
+
     for i, sl in enumerate(tractography.tracts()):
         scalars = None
         if len(data) > 0:
             scalars = numpy.vstack([
-                data[k][i].squeeze()
+                data[k.decode('utf8')][i].squeeze()
                 for k in trk_header['scalar_name'][:len(data)]
             ]).T
 
@@ -77,7 +78,7 @@ def tractography_to_trackvis_file(filename, tractography, affine=None, image_dim
 def tractography_from_trackvis_file(filename):
     tracts_and_data, header = trackvis.read(filename, points_space='rasmm')
 
-    tracts, scalars, properties = izip(*tracts_and_data)
+    tracts, scalars, properties = list(zip(*tracts_and_data))
 
     scalar_names = [n for n in header['scalar_name'] if len(n) > 0]
 
@@ -100,8 +101,9 @@ def tractography_from_trackvis_file(filename):
     affine = header['vox_to_ras']
     image_dims = header['dim']
 
-    tr = Tractography(tracts, tracts_data)
-    tr.affine = affine
-    tr.image_dims = image_dims
+    tr = Tractography(
+        tracts, tracts_data,
+        affine=affine, image_dims=image_dims
+    )
 
     return tr
