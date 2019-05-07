@@ -49,7 +49,8 @@ if __name__ == "__main__":
         ],
         scripts=[
             'scripts/tract_querier',
-            'scripts/tract_math'
+            'scripts/tract_math',
+            'scripts/volume_querier'
         ],
         test_suite='nose.collector',
         **(configuration().todict())

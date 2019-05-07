@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+from optparse import OptionParser
+import os
+import sys
+import argparse
+import tract_querier
+
+import nibabel
+
+def search_and_create_query_body(queries_string):
+    # Search order precidence for .qry files
+    # 1. Command line options specified are respected first
+    # 2. Current directory is respected second
+    # 3. Default query location thrid
+    # 4. Source Tree 4th
+    qry_search_folders = []
+    qry_search_folders.extend([os.getcwd()])
+
+    if os.path.exists(tract_querier.default_queries_folder):
+        qry_search_folders.extend([tract_querier.default_queries_folder])
+
+    ## Source Tree Data
+    source_tree_data_path = os.path.abspath(
+        os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'tract_querier','data')
+    )
+    if os.path.exists(source_tree_data_path):
+        qry_search_folders.extend([source_tree_data_path])
+
+    try:
+        if os.path.exists(queries_string):
+            query_script = open(queries_string).read()
+            query_filename = queries_string
+        else:
+            found = False
+            for folder in qry_search_folders:
+                file_ = os.path.join(folder, queries_string)
+                if os.path.exists(file_):
+                    found = True
+                    break
+            if found:
+                query_script = open(file_).read()
+                query_filename = file_
+            else:
+                query_script = queries_string
+                query_filename = '<script>'
+
+        query_file_body = tract_querier.queries_preprocess(
+            query_script,
+            filename=query_filename,
+            include_folders=qry_search_folders
+        )
+
+        tract_querier.queries_syntax_check(query_file_body)
+    except tract_querier.TractQuerierSyntaxError or tract_querier.TractographySpatialIndexing as e:
+        raise ValueError("Error parsing the query file")
+    # except tract_querier.TractographySpatialIndexing as e:
+    #     parser.error(e.value)
+
+    return query_file_body
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="""Creates volumes to be used as seed, waypoint and
+                       exclusion masks in different tractography software"""
+    )
+    parser.add_argument("atlas", help="volume file representing the atlas",
+                        type=str)
+    parser.add_argument("queries_string", help="query to run", type=str)
+    parser.add_argument("outdir", help="directory where to output files",
+                        type=str)
+
+    args = parser.parse_args()
+
+    query_file_body = search_and_create_query_body(args.queries_string)
+
+    labels_nii = nibabel.load(args.atlas)
+    img = labels_nii.get_data()
+
+    print("Computing queries")
+    evaluated_queries = tract_querier.eval_queries_volume(query_file_body, img)
+
+    query_names = list(evaluated_queries.keys())
+    query_names.sort()
+
+    for query_name in query_names:
+        save_query(query_name, labels_nii, args.outdir, evaluated_queries)
+
+def save_query(query_name, reference, outdir, evaluated_queries):
+    mask_query_info = evaluated_queries[query_name]
+
+    amount = len(mask_query_info.masks)
+
+    print("\tSaving {} volumes for query {}".format(amount, query_name))
+
+    for i in range(amount):
+        mask = mask_query_info.masks[i]
+        mtype = mask_query_info.mask_type[i]
+
+        filename = "{}_{}_{}_mask.nii.gz".format(query_name, i+1, mtype)
+
+        img = nibabel.Nifti1Image(mask, reference.affine, reference.header)
+
+        nibabel.save(img, os.path.join(outdir, filename))
+
+if __name__ == "__main__":
+    main()
