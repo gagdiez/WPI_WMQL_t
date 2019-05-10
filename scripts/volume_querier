@@ -89,21 +89,32 @@ def main():
         save_query(query_name, labels_nii, args.outdir, evaluated_queries)
 
 def save_query(query_name, reference, outdir, evaluated_queries):
-    mask_query_info = evaluated_queries[query_name]
+    query_info = evaluated_queries[query_name]
 
-    amount = len(mask_query_info.masks)
+    amount = len(query_info.inclusions)
+    amount += len(query_info.exclusions)
+    amount += len(query_info.seeds)
 
-    print("\tSaving {} volumes for query {}".format(amount, query_name))
 
-    for i in range(amount):
-        mask = mask_query_info.masks[i]
-        mtype = mask_query_info.mask_type[i]
-
-        filename = "{}_{}_{}_mask.nii.gz".format(query_name, i+1, mtype)
-
+    def save(mask, mask_type, n):
+        filename = "{}_{}_mask_{}.nii.gz".format(query_name, mask_type, n)
         img = nibabel.Nifti1Image(mask, reference.affine, reference.header)
-
         nibabel.save(img, os.path.join(outdir, filename))
+
+    print(query_name)
+
+    print("\tSaving {} seed mask(s)".format(len(query_info.seeds)))
+    for i, mask in enumerate(query_info.seeds, 1):
+        save(mask, 'seed', i)
+
+    print("\tSaving {} inclusion mask(s)".format(len(query_info.inclusions)))
+    for i, mask in enumerate(query_info.inclusions, 1):
+        save(mask, 'inclusion', i)
+
+    print("\tSaving {} exclusion mask(s)".format(len(query_info.exclusions)))
+    for i, mask in enumerate(query_info.exclusions, 1):
+        save(mask, 'exclusion', i)
+
 
 if __name__ == "__main__":
     main()
