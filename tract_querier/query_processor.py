@@ -39,10 +39,12 @@ class VolumeQueryInfo(object):
         self.seeds = seeds
 
     def _check_only_one_inclusion(self, qinfo):
-        if qinfo.exclusions or qinfo.seeds or len(qinfo.inclusions) > 1 :
+        if qinfo.exclusions or qinfo.seeds or len(qinfo.inclusions) > 1:
             raise NotImplementedError("We cannot compute this query yet")
 
     def union(self, other):
+        # This could be changed to include (AnB)uC or Au(BnC)
+        # but (AnB)u(CnD) is impossible to do with masks
         self._check_only_one_inclusion(self)
         self._check_only_one_inclusion(other)
 
@@ -84,18 +86,19 @@ class VolumeQueryInfo(object):
         return self
 
     def negate(self):
-        if len(self.inclusions) > 1 or self.exclusions or len(self.seeds) > 1:
-            raise ValueError("We cannot use an intersection as only mask")
-        
-        if self.inclusions:
-            self.inclusions[0] = ~self.inclusions[0]
-        else:
-            self.seeds[0] = ~self.seeds[0]
+        for i in range(len(self.inclusions)):
+            self.inclusions[i] = ~self.inclusions[i]
+
+        for i in range(len(self.seeds)):
+            self.seeds[i] = ~self.seeds[i]
+
+        for i in range(len(self.exclusions)):
+            self.exclusions[i] = ~self.exclusions[i]
 
         return self
 
     def exclude(self):
-        if len(self.inclusions) > 1 or len(self.seeds) > 1 or self.exclusions:
+        if self.exclusions:
             raise ValueError("We cannot exclude conjunctions")
 
         self.exclusions = self.inclusions
