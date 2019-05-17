@@ -45,11 +45,16 @@ class VolumeQueryInfo(object):
     def union(self, other):
         # This could be changed to include (AnB)uC or Au(BnC)
         # but (AnB)u(CnD) is impossible to do with masks
-        self._check_only_one_inclusion(self)
-        self._check_only_one_inclusion(other)
-
-        inclusion = [self.inclusions[0] + other.inclusions[0]]
-        return VolumeQueryInfo(inclusion)
+        inclusions = []
+        try:
+            self._check_only_one_inclusion(self)
+            for other_inclusion in other.inclusions:
+                inclusions += [self.inclusions[0] + other_inclusion]
+        except:
+            self._check_only_one_inclusion(other)
+            for self_inclusion in self.inclusions:
+                inclusions += [self_inclusion + other.inclusions[0]]
+        return VolumeQueryInfo(inclusions)
 
     def substract(self, other):
         self._check_only_one_inclusion(self)
@@ -103,6 +108,7 @@ class VolumeQueryInfo(object):
 
         self.exclusions = self.inclusions
         self.exclusions += self.seeds
+        self.exclusions = [sum(self.exclusions)]
         self.inclusions = []
         self.masks = []
         return self
@@ -1053,7 +1059,6 @@ class EvaluateQueriesVolumetric(EvaluateQueries):
 
     def visit_Num(self, node):
         mask = self.labeled_img == node.n
-
         return VolumeQueryInfo([mask])
 
     def visit_Str(self, node):
