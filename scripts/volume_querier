@@ -103,6 +103,12 @@ def save_query(query_name, reference, outdir, evaluated_queries):
 
     print(query_name)
 
+    if not query_info.seeds:
+        query_info.seeds = query_info.inclusions
+
+    if not query_info.inclusions:
+        query_info.inclusions = query_info.seeds
+
     print("\tSaving {} seed mask(s)".format(len(query_info.seeds)))
     for i, mask in enumerate(query_info.seeds, 1):
         save(mask, 'seed', i)

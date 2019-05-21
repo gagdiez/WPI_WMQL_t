@@ -1058,7 +1058,8 @@ class EvaluateQueriesVolumetric(EvaluateQueries):
         return VolumeQueryInfo([new_mask])
 
     def visit_Num(self, node):
-        mask = self.labeled_img == node.n
+        import numpy as np
+        mask = (self.labeled_img == node.n).astype(np.bool)
         return VolumeQueryInfo([mask])
 
     def visit_Str(self, node):
