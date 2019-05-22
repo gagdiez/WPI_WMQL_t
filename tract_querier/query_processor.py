@@ -84,8 +84,16 @@ class VolumeQueryInfo(object):
         return VolumeQueryInfo(self.inclusions, self.exclusions, self.seeds)
 
     def to_seed_mask(self):
-        if len(self.inclusions) > 1 or self.exclusions:
-            raise ValueError("We cannot use an intersection as ending points")
+        import numpy as np
+        if self.exclusions or self.seeds:
+            raise ValueError("We cannot transform a seed mask or exclusion "
+                             "mask in end points")
+
+        if len(self.inclusions) > 1:
+            # We have an intersection, therefore, we want the endpoints to be
+            # were all the masks intersect
+            self.inclusions = [np.prod(self.inclusions, axis=0)]
+
         self.seeds = list(self.inclusions)
         self.inclusions = []
         return self
@@ -906,12 +914,12 @@ class EvaluateQueriesVolumetric(EvaluateQueries):
         if isinstance(node.op, ast.Or):
             for value in node.values[1:]:
                 query_info_ = self.visit(value).copy()
-                return qinfo_node.union(query_info_)
+                qinfo_node = qinfo_node.union(query_info_)
 
         elif isinstance(node.op, ast.And):
             for value in node.values[1:]:
                 query_info_ = self.visit(value).copy()
-                return qinfo_node.intersection(query_info_)
+                qinfo_node = qinfo_node.intersection(query_info_)
 
         return qinfo_node
 
@@ -1060,6 +1068,8 @@ class EvaluateQueriesVolumetric(EvaluateQueries):
     def visit_Num(self, node):
         import numpy as np
         mask = (self.labeled_img == node.n).astype(np.bool)
+        if not mask.any():
+            return VolumeQueryInfo([0])
         return VolumeQueryInfo([mask])
 
     def visit_Str(self, node):
