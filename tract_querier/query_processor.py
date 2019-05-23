@@ -905,7 +905,7 @@ class EvaluateQueriesVolumetric(EvaluateQueries):
         query_to_exclude.exclude()
 
         return VolumeQueryInfo(query_to_include.inclusions,
-                               query_to_exclude.exclusions,
+                               query_to_exclude.exclusions + query_to_include.exclusions,
                                query_to_include.seeds)
 
     def visit_BoolOp(self, node):
