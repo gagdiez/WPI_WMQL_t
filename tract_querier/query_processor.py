@@ -95,7 +95,7 @@ class VolumeQueryInfo(object):
         if len(self.inclusions) > 1:
             # We have an intersection, therefore, we want the endpoints to be
             # were all the masks intersect
-            self.inclusions = [np.prod(self.inclusions, axis=0)]
+            self.inclusions = [np.prod(self.inclusions, axis=0).astype(bool)]
 
         self.seeds = list(self.inclusions)
         self.inclusions = []
@@ -119,14 +119,15 @@ class VolumeQueryInfo(object):
 
         self.exclusions = self.inclusions
         self.exclusions += self.seeds
-        self.exclusions = [np.sum(self.exclusions, axis=0)]
+        self.exclusions = [np.sum(self.exclusions, axis=0).astype(bool)]
         self.inclusions = []
         self.masks = []
         return self
 
     def negate_and_exclude(self):
-        self.negate()
+        import ipdb; ipdb.set_trace()
         self.exclude()
+        self.negate()
         return self
 
 class FiberQueryInfo(object):
