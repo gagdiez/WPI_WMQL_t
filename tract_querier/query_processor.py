@@ -125,7 +125,6 @@ class VolumeQueryInfo(object):
         return self
 
     def negate_and_exclude(self):
-        import ipdb; ipdb.set_trace()
         self.exclude()
         self.negate()
         return self
