@@ -5,6 +5,8 @@ from operator import lt, gt
 from itertools import takewhile
 import fnmatch
 
+import numpy as np
+
 from .code_util import DocStringInheritor
 
 
@@ -34,6 +36,9 @@ class VolumeQueryInfo(object):
     """Information about a processed query on volumes"""
 
     def __init__(self, inclusions=[], exclusions=[], seeds=[]):
+        if not (isinstance(inclusions, list) and
+                isinstance(exclusions, list) and isinstance(seeds, list)):
+            raise ValueError("The parameters must be of type list")
         self.inclusions = inclusions
         self.exclusions = exclusions
         self.seeds = seeds
@@ -43,8 +48,7 @@ class VolumeQueryInfo(object):
             raise NotImplementedError("We cannot compute this query yet")
 
     def union(self, other):
-        # This could be changed to include (AnB)uC or Au(BnC)
-        # but (AnB)u(CnD) is impossible to do with masks
+        # Note: (AnB)u(CnD) is impossible to do with masks
         inclusions = []
         try:
             self._check_only_one_inclusion(self)
@@ -62,7 +66,7 @@ class VolumeQueryInfo(object):
 
         self_mask = self.inclusions[0]
         other_mask = other.inclusions[0]
-        new_mask = self_mask * 0
+        new_mask = np.zeros(self_mask.shape, dtype=bool)
 
         nzr = self_mask.nonzero()
         new_mask[nzr] = self_mask[nzr] * ~other_mask[nzr]
@@ -84,7 +88,6 @@ class VolumeQueryInfo(object):
         return VolumeQueryInfo(self.inclusions, self.exclusions, self.seeds)
 
     def to_seed_mask(self):
-        import numpy as np
         if self.exclusions or self.seeds:
             raise ValueError("We cannot transform a seed mask or exclusion "
                              "mask in end points")
@@ -112,11 +115,11 @@ class VolumeQueryInfo(object):
 
     def exclude(self):
         if self.exclusions:
-            raise ValueError("We cannot exclude conjunctions")
+            raise ValueError("We cannot exclude exclusion masks")
 
         self.exclusions = self.inclusions
         self.exclusions += self.seeds
-        self.exclusions = [sum(self.exclusions)]
+        self.exclusions = [np.sum(self.exclusions, axis=0)]
         self.inclusions = []
         self.masks = []
         return self
@@ -896,16 +899,17 @@ class EvaluateQueriesVolumetric(EvaluateQueries):
             )
 
         query_to_include = self.visit(node.left).copy()
-        if len(node.comparators) > 1:
-            raise NotImplementedError('More than one comparator')
 
-        comparator = node.comparators[0]
+        exclusions = []
+        for comparator in node.comparators:
 
-        query_to_exclude = self.visit(comparator).copy()
-        query_to_exclude.exclude()
+            query_to_exclude = self.visit(comparator).copy()
+            query_to_exclude.exclude()
+
+            exclusions += query_to_exclude.exclusions
 
         return VolumeQueryInfo(query_to_include.inclusions,
-                               query_to_exclude.exclusions + query_to_include.exclusions,
+                               exclusions + query_to_include.exclusions,
                                query_to_include.seeds)
 
     def visit_BoolOp(self, node):
@@ -1060,16 +1064,15 @@ class EvaluateQueriesVolumetric(EvaluateQueries):
         slicing = [slice(None) for _ in range(3)]
         slicing[column] = slice(lower, upper, None)
 
-        new_mask = mask*0
-        new_mask[tuple(slicing)] = 1
+        new_mask = np.zeros(mask.shape, dtype=bool)
+        new_mask[tuple(slicing)] = True
 
         return VolumeQueryInfo([new_mask])
 
     def visit_Num(self, node):
-        import numpy as np
-        mask = (self.labeled_img == node.n).astype(np.bool)
+        mask = (self.labeled_img == node.n).astype(bool)
         if not mask.any():
-            return VolumeQueryInfo([0])
+            return VolumeQueryInfo([np.array([False], dtype=bool)])
         return VolumeQueryInfo([mask])
 
     def visit_Str(self, node):
