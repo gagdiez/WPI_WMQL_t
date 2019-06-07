@@ -246,8 +246,8 @@ CB.side = (
         )
     )
 
- Block to remove AF
-lock.side |= (not anterior_of(wm_paracentral.side)) * (not posterior_of(wm_insula.side)) * superior_of(wm_middletemporal.side)
+# Block to remove AF
+block.side |= (not anterior_of(wm_paracentral.side)) * (not posterior_of(wm_insula.side)) * superior_of(wm_middletemporal.side)
 
 ctx_posterior_superiortemporal.side |= ctx_superiortemporal.side * (posterior_of(superiorfrontal.side))
 
