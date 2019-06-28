@@ -95,18 +95,10 @@ occipital.side |= (
     lingual.side or
     pericalcarine.side or
     cuneus.side or
-    lateraloccipital.side or
-    lingual.side or
-    pericalcarine.side or
-    cuneus.side or
     lateraloccipital.side
 )
 
 ctx_occipital.side |= (
-    ctx_lingual.side or
-    ctx_pericalcarine.side or
-    ctx_cuneus.side or
-    ctx_lateraloccipital.side or
     ctx_lingual.side or
     ctx_pericalcarine.side or
     ctx_cuneus.side or
